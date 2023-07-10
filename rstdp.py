@@ -9,26 +9,28 @@ class SpikingNeuron(nn.Module):
         self.out_features = out_features
         self.tau = tau
 
-        self.register_buffer('membrane_potential', torch.zeros(out_features))
-        self.register_buffer('spike', torch.zeros(out_features))
-        self.register_buffer('spike_count', torch.zeros(out_features))
+        self.membrane_potential = torch.zeros(out_features)
+        self.spike = torch.zeros(out_features)
+        self.spike_count = torch.zeros(out_features)
 
-        self.weight = nn.Parameter(torch.Tensor(in_features, out_features))
+        self.weights: torch.Tensor = torch.zeros(in_features, out_features)
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.xavier_uniform_(self.weight)
+        nn.init.xavier_uniform_(self.weights)
+        self.weights *= 0.1
 
     def forward(self, input_spikes):
-        psc = input_spikes.float() @ self.weight
+        psc = input_spikes.float() @ self.weights
         self.membrane_potential = (1.0 - 1.0 / self.tau) * self.membrane_potential + psc
         self.spike = self.membrane_potential > 1.0
         self.membrane_potential.masked_fill_(self.spike, 0.0)
         self.spike_count += self.spike.float()
+
         return self.spike
     
     def reset(self):
-        self.membrane_potential = self.membrane_potential.zero_()
+        self.spike = self.membrane_potential.zero_()
         self.spike = self.spike.zero_()
         self.spike_count = self.spike_count.zero_()
 
@@ -59,16 +61,16 @@ class RSTDPNetwork(nn.Module):
         self.spike_decay = spike_decay
 
         self.snn = SpikingNeuralNetwork(input_size, hidden_size, output_size)
-        self.register_buffer('reward', torch.zeros(1))
+        self.reward = torch.zeros(1)
 
     def forward(self, input_spike, reward):
         self.reward = self.reward_decay * self.reward + reward
         return self.snn(input_spike)
 
     def update_weights(self):
-        torch.add(self.snn.input_layer.weight, self.lr * (self.reward * self.snn.input_layer.spike_count - self.spike_decay * self.snn.input_layer.weight))
-        torch.add(self.snn.hidden_layer.weight, self.lr * (self.reward * self.snn.hidden_layer.spike_count - self.spike_decay * self.snn.hidden_layer.weight))
+        self.snn.input_layer.weights += self.lr * (self.reward * self.snn.input_layer.spike_count - self.spike_decay * self.snn.input_layer.weights)
+        self.snn.hidden_layer.weights += self.lr * (self.reward * self.snn.hidden_layer.spike_count - self.spike_decay * self.snn.hidden_layer.weights)
 
     def reset(self):
         self.snn.reset()
-        self.reward = torch.zeros_like(self.reward)
+        self.reward.zero_()

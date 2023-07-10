@@ -26,15 +26,18 @@ class Agent:
         self.input_layer = InputLayer(num_neurons, 9 * len(TileType), theta_open, learning_rate, exploration_prob, decay_rate, final_exploration_prob, gamma, td_eta, td_decay_rate)
         
     def update_visual_field(self, world: World) -> None:
+        self.visual_field = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.int32)
         for dx in range(-1, 1):
             for dy in range(-1, 1):
                 if world.in_bounds(self.x + dx, self.y + dy):
                     tile = world.grid[self.y + dy, self.x + dx]
                 else:
                     tile = TileType.empty.value
-                self.visual_field[dy+1, dx+1] = tile
+                self.visual_field[dy+1, dx+1][tile] = 1
         
-    def step(self, action, world):
+    def step(self, action: str | int, world: World) -> float:
+        if isinstance(action, int):
+            action = self.actions[action]
         reward = 0.0
         if action == 'up':
             self.y = max(0, self.y - 1)
