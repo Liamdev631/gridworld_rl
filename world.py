@@ -1,37 +1,32 @@
 # world.py
 import numpy as np
 from tile_types import TileType
-from agent import Agent
 
-GRID_SIZE = 10
+GRID_SIZE = 5
 
-def init_world():
-    instance_counts = {
-        TileType.tree.value: 10,
-        TileType.log.value: 0
-    }
-    grid = np.full((GRID_SIZE, GRID_SIZE), fill_value=TileType.empty.value, dtype=int)
-    for tile_type, count in instance_counts.items():
-        for i in range(count):
-            x = np.random.randint(GRID_SIZE)
-            y = np.random.randint(GRID_SIZE)
-            grid[y, x] = tile_type
-    return grid
+instance_counts = {
+    TileType.tree.value: 5,
+    TileType.log.value: 0
+}
 
-def step(agent, grid):
-    visual_field = np.full((GRID_SIZE, GRID_SIZE), fill_value=TileType.empty.value, dtype=int)
-    for x in range(agent.x - 1, agent.x + 1):
-        for y in range(agent.y - 1, agent.y + 1):
-            if x < 0 or x >= GRID_SIZE or y < 0 or y >= GRID_SIZE:
-                break
-            visual_field[y, x] = grid[y, x]
+class World:
+    def __init__(self):
+        self.grid_size = GRID_SIZE
+        self.grid = np.full((self.grid_size, self.grid_size), fill_value=TileType.empty.value, dtype=int)
+        self.reset()
     
-    action = agent.select_action(visual_field)
-    reward = agent.step(agent.actions[action], grid)
-    agent.adapt(action, reward)
-    return reward
+    def reset(self):
+        self.grid.fill(TileType.empty.value)
+        for tile_type, count in instance_counts.items():
+            for _ in range(count):
+                x = np.random.randint(self.grid_size)
+                y = np.random.randint(self.grid_size)
+                self.grid[y, x] = tile_type
 
-def is_session_complete(grid):
-    if np.count_nonzero(grid == TileType.tree.value) == 0:
-        return True
-    return False
+    def is_complete(self):
+        if np.count_nonzero(self.grid == TileType.tree.value) == 0:
+            return True
+        return False
+    
+    def in_bounds(self, x, y):
+        return 0 <= x < self.grid_size and 0 <= y < self.grid_size

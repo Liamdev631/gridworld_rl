@@ -2,11 +2,13 @@
 import numpy as np
 from tile_types import TileType
 from model import InputLayer
+from world import World
+import torch
 
 class Agent:
-    def __init__(self, grid_size):
-        self.x = np.random.randint(grid_size)
-        self.y = np.random.randint(grid_size)
+    def __init__(self):
+        self.x = 0
+        self.y = 0
         self.actions = ['up', 'down', 'left', 'right', 'interact']
         self.p_random = 0.1
         
@@ -20,40 +22,37 @@ class Agent:
         td_eta = 1e-3
         td_decay_rate = 0.99
         
+        self.visual_field: torch.Tensor = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.int32)
         self.input_layer = InputLayer(num_neurons, 9 * len(TileType), theta_open, learning_rate, exploration_prob, decay_rate, final_exploration_prob, gamma, td_eta, td_decay_rate)
         
-    def step(self, action, grid):
+    def update_visual_field(self, world: World) -> None:
+        for dx in range(-1, 1):
+            for dy in range(-1, 1):
+                if world.in_bounds(self.x + dx, self.y + dy):
+                    tile = world.grid[self.y + dy, self.x + dx]
+                else:
+                    tile = TileType.empty.value
+                self.visual_field[dy+1, dx+1] = tile
+        
+    def step(self, action, world):
         reward = 0.0
         if action == 'up':
             self.y = max(0, self.y - 1)
         elif action == 'down':
-            self.y = min(grid.shape[0] - 1, self.y + 1)
+            self.y = min(world.grid.shape[0] - 1, self.y + 1)
         elif action == 'left':
             self.x = max(0, self.x - 1)
         elif action == 'right':
-            self.x = min(grid.shape[1] - 1, self.x + 1)
+            self.x = min(world.grid.shape[1] - 1, self.x + 1)
         elif action == 'interact':
-            if grid[self.y][self.x] == TileType.tree.value:
-                grid[self.y][self.x] = TileType.log.value
+            if world.grid[self.y][self.x] == TileType.tree.value:
+                world.grid[self.y][self.x] = TileType.log.value
                 reward += 1.0
         return reward
                 
     def select_action(self, visual_field):
-        visual_field = visual_field.flatten()
-        in_1 = np.zeros((9, len(TileType)))
-        for i in range(9):
-            in_1[i, visual_field[i]] = 1.0
-        in_1 = in_1.flatten()
-        
-        values = self.input_layer.calculate_values(in_1)
-        winner_neuron = self.input_layer.select_winner_neuron(values)
-
-        if np.random.rand() < self.p_random:
-            # Randomly select an action
-            action = np.random.choice(self.actions)
-        else:
-            # Select action from the network
-            action = winner_neuron
+        values = self.input_layer.calculate_values(visual_field.flatten())
+        action = self.input_layer.select_action(values)
 
         return action
     

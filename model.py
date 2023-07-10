@@ -22,14 +22,14 @@ class InputLayer:
     def calculate_values(self, input_vector):
         return np.linalg.norm(self.weights - input_vector, axis=1)
     
-    def select_winner_neuron(self, values):
+    def select_winner_neuron(self, values) -> int:
         eligible_neurons = values <= self.theta
         if np.any(eligible_neurons):
             min_activated_neuron = np.argmin(values[eligible_neurons])
-            return min_activated_neuron
+            return int(min_activated_neuron)
         else:
             min_activated_neuron = np.argmin(values)
-            return min_activated_neuron
+            return int(min_activated_neuron)
     
     def adapt_weights(self, winner_neuron, input_vector):
         delta_theta = self.calculate_values(input_vector) - self.theta
@@ -40,12 +40,13 @@ class InputLayer:
     def adapt_thresholds(self):
         self.theta += self.theta_open
     
-    def select_action(self):
+    def select_action(self, input_vector) -> int:
         if np.random.rand() > self.exploration_prob:
-            action = np.argmax(self.actor_weights @ self.critic_trace)
+            values = self.calculate_values(input_vector)
+            winner_neuron = self.select_winner_neuron(values)
+            return winner_neuron
         else:
-            action = np.random.choice(self.num_neurons)
-        return action
+            return np.random.choice(self.num_neurons)
     
     def adapt_actor_critic(self, action: int, td_error):
         self.actor_trace *= self.td_decay_rate
@@ -59,14 +60,13 @@ class InputLayer:
         self.theta += self.td_eta * np.abs(td_error) * self.actor_trace[action]
         self.weights += self.td_eta * np.abs(td_error) * self.actor_weights @ self.critic_trace
     
-    def adapt(self, input_vector, reward):
+    def adapt(self, action, input_vector, reward):
         values = self.calculate_values(input_vector)
         winner_neuron = self.select_winner_neuron(values)
         self.adapt_weights(winner_neuron, input_vector)
         if np.all(~(values <= self.theta)):
             self.adapt_thresholds()
         
-        action = self.select_action()
         td_error = reward + self.gamma * self.critic_weights @ self.calculate_values(input_vector) - self.critic_weights @ self.critic_trace
         self.adapt_actor_critic(action, td_error)
         
