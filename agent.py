@@ -1,7 +1,7 @@
 # agent.py
 import numpy as np
+from rstdp import RSTDPNetwork
 from tile_types import TileType
-from model import InputLayer
 from world import World
 import torch
 
@@ -9,24 +9,20 @@ class Agent:
     def __init__(self):
         self.x = 0
         self.y = 0
-        self.actions = ['up', 'down', 'left', 'right', 'interact']
-        self.p_random = 0.1
+        self.actions = ['up', 'down', 'left', 'right', 'interact', 'random']
+        self.learning_rate = 1e-1
+        self.num_ticks_per_inference: int = 50
         
-        num_neurons = len(self.actions)
-        theta_open = 1e-3
-        learning_rate = 1e-3
-        exploration_prob = 1.0
-        decay_rate = 0.99
-        final_exploration_prob = 0.01
-        gamma = 0.9
-        td_eta = 1e-3
-        td_decay_rate = 0.99
+        self.visual_field: torch.Tensor = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.float32)
         
-        self.visual_field: torch.Tensor = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.int32)
-        self.input_layer = InputLayer(num_neurons, 9 * len(TileType), theta_open, learning_rate, exploration_prob, decay_rate, final_exploration_prob, gamma, td_eta, td_decay_rate)
+        self.input_size = self.visual_field.numel()
+        self.hidden_size = 20
+        self.output_size = len(self.actions)
+        
+        self.model: RSTDPNetwork = RSTDPNetwork(self.input_size, self.hidden_size, self.output_size, self.learning_rate)
         
     def update_visual_field(self, world: World) -> None:
-        self.visual_field = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.int32)
+        self.visual_field = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.float32)
         for dx in range(-1, 1):
             for dy in range(-1, 1):
                 if world.in_bounds(self.x + dx, self.y + dy):
@@ -34,11 +30,15 @@ class Agent:
                 else:
                     tile = TileType.empty.value
                 self.visual_field[dy+1, dx+1][tile] = 1
+        self.visual_field = self.visual_field.flatten()
         
     def step(self, action: str | int, world: World) -> float:
         if isinstance(action, int):
             action = self.actions[action]
         reward = 0.0
+        if action == 'random':
+            action = self.actions[int(torch.randint(0, len(self.actions)-1, size=(1,)))]
+            
         if action == 'up':
             self.y = max(0, self.y - 1)
         elif action == 'down':
@@ -53,11 +53,27 @@ class Agent:
                 reward += 1.0
         return reward
                 
-    def select_action(self, visual_field):
-        values = self.input_layer.calculate_values(visual_field.flatten())
-        action = self.input_layer.select_action(values)
-
+    def select_action(self, previous_reward: float = 0.0, p_random: float = 0.1, learning: bool = True) -> str:
+        # Compute action and reward
+        if torch.rand(1) < p_random:
+            action = self.actions[int(torch.randint(0, len(self.actions), size=(1,)))]
+        else:
+            action = self.compute_action(previous_reward, learning)
         return action
     
-    def update_reward(self, action, reward):
-        self.input_layer.adapt_actor_critic(action, reward)
+    def compute_action(self, previous_reward: float = 0.0, learning: bool = False) -> str:
+        # Reset spike counters 
+        self.model.snn.input_layer.spike_count = self.model.snn.input_layer.spike_count.zero_()
+        self.model.snn.hidden_layer.spike_count = self.model.snn.hidden_layer.spike_count.zero_()
+        
+        # Collect input spikes as long as required to ensure the response is accurate
+        for _ in range(self.num_ticks_per_inference):
+            input_spikes = torch.rand_like(self.visual_field).lt(self.visual_field * 0.5).float()
+            self.model.forward(input_spikes, previous_reward)
+        action_index: int = torch.argmax(self.model.snn.hidden_layer.spike_count).item() # type: ignore
+        
+        # Update the weights
+        if learning:
+            self.model.update_weights()
+        
+        return self.actions[action_index]
