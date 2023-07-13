@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class SpikingFEAST(nn.Module):
-	def __init__(self, input_size, num_neurons, f_open=1e-2, lr_thresh = 1e-2, lr_weights = 1e-2, lr=1):
+	def __init__(self, input_size, num_neurons, f_open: float = 1e-2, lr_thresh: float = 1e-2, lr_weights: float = 1e-2, lr: float = 1):
 		super(SpikingFEAST, self).__init__()
 		self.input_size = input_size
 		self.num_neurons = num_neurons
@@ -27,7 +27,7 @@ class SpikingFEAST(nn.Module):
 		has_eligible_neuron = torch.any(eligible_neurons).float()
 
 		# If no neurons are eligible, expand the thresholds
-		self.thresholds += self.f_open * has_eligible_neuron
+		self.thresholds += self.f_open * (1 - has_eligible_neuron)
 
 		# Update weights and thresholds for the winning neuron
 		delta_thresh = values[closest_neuron] - self.thresholds[closest_neuron]
