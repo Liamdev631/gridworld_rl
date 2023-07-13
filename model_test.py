@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from model import InputLayer
+from spiking_feast import SpikingFEAST
+from tqdm import tqdm
 
 input_dim = 2
 num_neurons = 10
@@ -9,8 +10,7 @@ theta_open = 1e-4
 learning_rate = 1e-3
 num_epochs = 1000
 
-input_layer = InputLayer(num_neurons, input_dim, theta_open, learning_rate)
-input_layer.weights *= 3
+input_layer = SpikingFEAST(input_size=input_dim, num_neurons=num_neurons)
 
 # Simulated dataset with three probability density functions (PDF)
 dataset = np.random.randn(100, input_dim) * 0.2
@@ -27,24 +27,24 @@ ax.set_title('Adaptation of Input Layer Neurons')
 ax.set_aspect('equal', adjustable='box')
 
 # Initialize the scatter plot for weights and circles for thresholds
-weights_scatter = ax.scatter([], [], c='r', marker='o')
-dataset_scatter = ax.scatter([], [], c='b', marker='o', alpha=0.2)
-circles = [plt.Circle((0, 0), 0, color='b', fill=False) for _ in range(num_neurons)]
+weights_scatter = ax.scatter([], [], c='r', marker='o') # type: ignore
+dataset_scatter = ax.scatter([], [], c='b', marker='o', alpha=0.2) # type: ignore
+circles = [plt.Circle((0, 0), 0, color='b', fill=False) for _ in range(num_neurons)] # type: ignore
 
 # Function to update the scatter plot and circles
 def update(frame):
     for observation in dataset:
-        input_layer.adapt(observation)
+        activation = input_layer(observation)
 
     weights_scatter.set_offsets(input_layer.weights)
     dataset_scatter.set_offsets(dataset)
     for i in range(num_neurons):
         circles[i].center = input_layer.weights[i]
-        circles[i].radius = input_layer.theta[i]
+        circles[i].radius = input_layer.thresholds[i]
         ax.add_patch(circles[i])
 
 # Create the animation
-animation = FuncAnimation(fig, update, frames=range(num_epochs), interval=100, repeat=False)
+animation = FuncAnimation(fig, update, frames=tqdm(range(num_epochs)), interval=100, repeat=False)
 
 # Display the animation
-plt.show()
+animation.show()
