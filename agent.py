@@ -9,7 +9,7 @@ class Agent:
     def __init__(self):
         self.x = 0
         self.y = 0
-        self.actions = ['up', 'down', 'left', 'right', 'interact', 'random']
+        self.actions = ['up', 'down', 'left', 'right', 'interact']
         self.learning_rate = 1e-1
         self.num_ticks_per_inference: int = 50
         

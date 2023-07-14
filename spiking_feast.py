@@ -15,7 +15,7 @@ class SpikingFEAST(nn.Module):
 		self.weights = torch.randn(num_neurons, input_size)
 		self.thresholds = torch.randn(num_neurons)
 
-	def forward(self, x):
+	def forward(self, x, reward):
 		# Calculate the Euclidean distance between input and weight vectors
 		values = torch.norm(self.weights - x, dim=1)
 
@@ -24,17 +24,17 @@ class SpikingFEAST(nn.Module):
 
 		# Check eligibility for activation based on thresholds
 		eligible_neurons = values <= self.thresholds
-		has_eligible_neuron = torch.any(eligible_neurons).float()
+		has_eligible_neuron = torch.any(eligible_neurons)
 
 		# If no neurons are eligible, expand the thresholds
-		self.thresholds += self.f_open * (1 - has_eligible_neuron)
+		self.thresholds[~eligible_neurons] += self.f_open * reward
 
 		# Update weights and thresholds for the winning neuron
 		delta_thresh = values[closest_neuron] - self.thresholds[closest_neuron]
 		delta_weights = x - self.weights[closest_neuron]
 
-		self.thresholds[closest_neuron] += delta_thresh * self.lr_thresh * self.lr
-		self.weights[closest_neuron] += delta_weights * self.lr_weights * self.lr
+		self.thresholds[closest_neuron] += delta_thresh * self.lr_thresh * self.lr * reward
+		self.weights[closest_neuron] += delta_weights * self.lr_weights * self.lr * reward
 
 		# Create a one-hot vector for the winning neuron
 		closest_neuron = torch.argmin(values)
