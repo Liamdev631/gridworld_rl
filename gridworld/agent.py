@@ -1,8 +1,7 @@
 # agent.py
 import numpy as np
-from rstdp import RSTDPNetwork
-from tile_types import TileType
-from world import World
+from gridworld.tile_types import TileType
+from gridworld.world import World
 import torch
 
 class Agent:
@@ -13,13 +12,11 @@ class Agent:
         self.learning_rate = 1e-1
         self.num_ticks_per_inference: int = 50
         
-        self.visual_field: torch.Tensor = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.float32)
+        self.visual_field: torch.Tensor = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.float32).flatten()
         
         self.input_size = self.visual_field.numel()
         self.hidden_size = 20
         self.output_size = len(self.actions)
-        
-        self.model: RSTDPNetwork = RSTDPNetwork(self.input_size, self.hidden_size, self.output_size, self.learning_rate)
         
     def update_visual_field(self, world: World) -> None:
         self.visual_field = torch.full((3, 3, len(TileType)), fill_value=TileType.empty.value, dtype=torch.float32)
@@ -52,28 +49,4 @@ class Agent:
                 world.grid[self.y][self.x] = TileType.log.value
                 reward += 1.0
         return reward
-                
-    def select_action(self, previous_reward: float = 0.0, p_random: float = 0.1, learning: bool = True) -> str:
-        # Compute action and reward
-        if torch.rand(1) < p_random:
-            action = self.actions[int(torch.randint(0, len(self.actions), size=(1,)))]
-        else:
-            action = self.compute_action(previous_reward, learning)
-        return action
     
-    def compute_action(self, previous_reward: float = 0.0, learning: bool = False) -> str:
-        # Reset spike counters 
-        self.model.snn.input_layer.spike_count = self.model.snn.input_layer.spike_count.zero_()
-        self.model.snn.hidden_layer.spike_count = self.model.snn.hidden_layer.spike_count.zero_()
-        
-        # Collect input spikes as long as required to ensure the response is accurate
-        for _ in range(self.num_ticks_per_inference):
-            input_spikes = torch.rand_like(self.visual_field).lt(self.visual_field * 0.5).float()
-            self.model.forward(input_spikes, previous_reward)
-        action_index: int = torch.argmax(self.model.snn.hidden_layer.spike_count).item() # type: ignore
-        
-        # Update the weights
-        if learning:
-            self.model.update_weights()
-        
-        return self.actions[action_index]

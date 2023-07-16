@@ -1,6 +1,6 @@
 # world.py
 import numpy as np
-from tile_types import TileType
+from gridworld.tile_types import TileType
 
 GRID_SIZE = 5
 
