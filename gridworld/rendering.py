@@ -1,14 +1,16 @@
+import datetime
 from gridworld.agent import Agent
 from gridworld.tile_types import TileType
-from gridworld.world import World
+from gridworld.world import LoggerTrainingWorld
 import pygame
 import torch
+from torch.distributions import Categorical
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-def run_simulation_with_rendering(policy: torch.nn.Module, file_name: str = "file.gif", max_duration: int = 1000):
-    world = World()
+def run_simulation_with_rendering(policy: torch.nn.Module, device: torch.device, file_name: str = "file.gif", max_duration: int = 100):
+    world = LoggerTrainingWorld()
     agent = Agent()
     frames = []
     
@@ -43,15 +45,13 @@ def run_simulation_with_rendering(policy: torch.nn.Module, file_name: str = "fil
     frame = 0
     
     while not done:
-        visual_field = agent.update_visual_field(world)
-        rewards = torch.zeros(len(agent.actions))
+        visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
+        probs = torch.zeros(len(agent.actions)).to(device)
         for action in range(len(agent.actions)):
-            action_vector = torch.zeros(len(agent.actions))
-            action_vector[action] = 1.0
-            observation = torch.cat((visual_field, action_vector))
-            rewards[action] = policy(observation)
-        print(rewards)
-        action = int(torch.argmax(rewards).item())
+            probs[action] = policy(visual_field.unsqueeze(dim=0), torch.tensor([action]).to(device).unsqueeze(dim=0))
+        #action = int(torch.argmax(rewards).cpu().item())
+        prob_dist = Categorical(probs)
+        action = int(prob_dist.sample().item())
         agent.step(action, world)
         
         screen.fill((255, 255, 255))
@@ -71,7 +71,7 @@ def run_simulation_with_rendering(policy: torch.nn.Module, file_name: str = "fil
                 done = True
                 
         # Draw the frame number in the left upper corner
-        text = font.render(f"Frame: {frame}", True, (0, 0, 0))
+        text = font.render(f"Frame: {frame + 1}", True, (0, 0, 0))
         screen.blit(text, dest=(0, 0))
         
         pygame.display.flip()
@@ -103,9 +103,11 @@ def run_simulation_with_rendering(policy: torch.nn.Module, file_name: str = "fil
         return im,
 
     # Create the animation
-    ani = animation.FuncAnimation(fig, update_frame, frames=len(frames), interval=50, blit=True)
+    ani = animation.FuncAnimation(fig, update_frame, frames=len(frames), interval=250, blit=True)
 
     # Save the animation as a GIF
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
+    file_name = f"policy_{timestamp}.gif"
     ani.save(file_name, writer="pillow")
 
     return frame
