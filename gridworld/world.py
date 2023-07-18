@@ -2,15 +2,15 @@
 import numpy as np
 from gridworld.tile_types import TileType
 
-GRID_SIZE = 5
+GRID_SIZE = 10
 
 instance_counts = {
-    TileType.tree.value: 5,
+    TileType.tree.value: 10,
     TileType.log.value: 0
 }
 
 class World:
-    def __init__(self):
+    def __init__(self, grid_size=GRID_SIZE):
         self.grid_size = GRID_SIZE
         self.grid = np.full((self.grid_size, self.grid_size), fill_value=TileType.empty.value, dtype=int)
         self.reset()
