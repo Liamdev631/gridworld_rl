@@ -1,5 +1,5 @@
 import datetime
-from gridworld.agent import Agent
+from gridworld.agent import Agent, LoggerAgent
 from gridworld.tile_types import TileType
 from gridworld.world import LoggerTrainingWorld, World
 from gridworld.exploration import ExplorationMethod
@@ -11,8 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-def run_simulation_with_rendering(policy: torch.nn.Module, world: World, device: torch.device, exploration_method: ExplorationMethod, file_name: str = "file.gif", max_duration: int = 100, frame_rate: float = 5):
-    agent = Agent()
+def run_simulation_with_rendering(policy: torch.nn.Module, world: World, agent: Agent, device: torch.device, exploration_method: ExplorationMethod, file_name: str = "file.gif", max_duration: int = 100, frame_rate: float = 5):
     agent.x, agent.y = world.get_random_coordinates()
     frames = []
     
@@ -48,7 +47,7 @@ def run_simulation_with_rendering(policy: torch.nn.Module, world: World, device:
     
     while not done:
         visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
-        action = exploration_method.select_action(policy, visual_field, len(agent.actions))
+        action = exploration_method.select_action(policy, visual_field)
         agent.step(int(action.item()), world)
         
         screen.fill((255, 255, 255))
@@ -102,8 +101,6 @@ def run_simulation_with_rendering(policy: torch.nn.Module, world: World, device:
     ani = animation.FuncAnimation(fig, update_frame, frames=len(frames), interval=int(1000 / frame_rate), blit=True)
 
     # Save the animation as a GIF
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
-    file_name = f"policy_{timestamp}.gif"
     ani.save(file_name, writer="pillow")
 
     return frame
