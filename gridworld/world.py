@@ -38,6 +38,7 @@ class World:
         return x, y
 
     def get_visual_field_at_point(self, x: int, y: int, vision_range: int) -> torch.Tensor:
+        """Returns the visual field at the given point with the given vision range."""
         visual_field = torch.full((2 * vision_range + 1, 2 * vision_range + 1), fill_value=TileType.empty.value, dtype=torch.int32)
         for dx in range(-vision_range, vision_range + 1):
             for dy in range(-vision_range, vision_range + 1):
@@ -46,6 +47,7 @@ class World:
         return visual_field
 
     def get_visual_field_at_agent(self, agent) -> torch.Tensor:
+        """Gets the visual field from the given agent."""
         return self.get_visual_field_at_point(agent.x, agent.y, agent.vision_range)
 
 

@@ -1,7 +1,9 @@
 import datetime
 from gridworld.agent import Agent
 from gridworld.tile_types import TileType
-from gridworld.world import LoggerTrainingWorld
+from gridworld.world import LoggerTrainingWorld, World
+from gridworld.exploration import ExplorationMethod
+
 import pygame
 import torch
 from torch.distributions import Categorical
@@ -9,9 +11,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-def run_simulation_with_rendering(policy: torch.nn.Module, device: torch.device, file_name: str = "file.gif", max_duration: int = 100):
-    world = LoggerTrainingWorld()
+def run_simulation_with_rendering(policy: torch.nn.Module, world: World, device: torch.device, exploration_method: ExplorationMethod, file_name: str = "file.gif", max_duration: int = 100, frame_rate: float = 5):
     agent = Agent()
+    agent.x, agent.y = world.get_random_coordinates()
     frames = []
     
     pygame.init()
@@ -46,20 +48,15 @@ def run_simulation_with_rendering(policy: torch.nn.Module, device: torch.device,
     
     while not done:
         visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
-        probs = torch.zeros(len(agent.actions)).to(device)
-        for action in range(len(agent.actions)):
-            probs[action] = policy(visual_field.unsqueeze(dim=0), torch.tensor([action]).to(device).unsqueeze(dim=0))
-        #action = int(torch.argmax(rewards).cpu().item())
-        prob_dist = Categorical(probs)
-        action = int(prob_dist.sample().item())
-        agent.step(action, world)
+        action = exploration_method.select_action(policy, visual_field, len(agent.actions))
+        agent.step(int(action.item()), world)
         
         screen.fill((255, 255, 255))
         
         # Render the tiles
         for x in range(world.grid_size):
             for y in range(world.grid_size):
-                tile = world.grid[y, x]
+                tile = world.grid[y, x].item()
                 sprite = sprites[tile]
                 screen.blit(sprite, (x * 16, y * 16))
                 
@@ -77,7 +74,6 @@ def run_simulation_with_rendering(policy: torch.nn.Module, device: torch.device,
         pygame.display.flip()
         pygame.display.update()
         frames.append(np.copy(pygame.surfarray.array3d(screen).transpose(1, 0, 2)))
-        #clock.tick(2)
         
         # End if time has elapsed
         frame += 1
@@ -103,7 +99,7 @@ def run_simulation_with_rendering(policy: torch.nn.Module, device: torch.device,
         return im,
 
     # Create the animation
-    ani = animation.FuncAnimation(fig, update_frame, frames=len(frames), interval=250, blit=True)
+    ani = animation.FuncAnimation(fig, update_frame, frames=len(frames), interval=int(1000 / frame_rate), blit=True)
 
     # Save the animation as a GIF
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M")
