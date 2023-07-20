@@ -13,11 +13,11 @@ def simulate_episode(agent: Agent, world: World, policy: torch.nn.Module, explor
     rewards = torch.zeros(max_duration, 1, dtype=torch.float32)
     
     t = 0
-    action: torch.Tensor = torch.zeros(1, dtype=torch.int32) 
     for t in range(max_duration):
         visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
-        action = exploration_method.select_action(policy, visual_field)
+        action = exploration_method.get_expected_rewards(policy)
         
+        # Update the agent's state
         observations[t] = visual_field
         actions[t] = action
         inventories[t] = agent.inventory

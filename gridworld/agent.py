@@ -23,7 +23,7 @@ class Agent:
         tile_under_foot: int = int(world.grid[self.y, self.x].item())
         if tile_under_foot in carryable_objects and self.inventory.sum() < MAX_INVENTORY_SIZE:
             return False
-        inventory_slot: int = carryable_objects.index(tile_under_foot)
+        inventory_slot: int = carryable_objects.index(tile_under_foot) if tile_under_foot in carryable_objects else 0
         self.inventory[inventory_slot] += 1
         world.grid[self.y, self.x] = TileType.empty.value
         return True
@@ -32,7 +32,7 @@ class Agent:
         tile_under_foot: int = int(world.grid[self.y, self.x].item())
         if tile_under_foot != TileType.empty.value or self.inventory[tile_under_foot] <= 0:
             return False
-        inventory_slot: int = carryable_objects.index(tile_under_foot)
+        inventory_slot: int = carryable_objects.index(tile_under_foot) if tile_under_foot in carryable_objects else 0
         self.inventory[inventory_slot] -= 1
         world.grid[self.x, self.y] = tile_under_foot
         return True
@@ -71,7 +71,7 @@ class SweeperAgent(Agent):
     def __init__(self):
         super().__init__(name='Sweeper', possible_actions=['up', 'down', 'left', 'right', 'pickup', 'drop'])
         
-    def step(self, action: str | int, world: World):
+    def step(self, action: str | int, world: World) -> float:
         super().step(action, world)
         if isinstance(action, int):
             action = self.possible_actions[action]
@@ -95,3 +95,4 @@ class SweeperAgent(Agent):
                 reward -= 2.0
         elif action == 'drop':
             reward -= 2.0
+        return reward

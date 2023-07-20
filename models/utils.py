@@ -20,15 +20,18 @@ class ReplayMemory:
             rewards = (rewards - mean_reward) / std_reward
         if discount_factor > 0:
             rewards = _compute_discounted_rewards(rewards, discount_factor)
-        self.observations = torch.cat((self.observations, observation.to(self.device)))
-        self.actions = torch.cat((self.actions, actions.to(self.device)))
-        self.inventories = torch.cat((self.inventories, inventories.to(self.device)))
-        self.rewards = torch.cat((self.rewards, rewards.to(self.device)))
+        self.observations   = torch.cat((self.observations,     observation.to(self.device)))
+        self.actions        = torch.cat((self.actions,          actions.to(self.device)))
+        self.inventories    = torch.cat((self.inventories,      inventories.to(self.device)))
+        self.rewards        = torch.cat((self.rewards,          rewards.to(self.device)))
     
     def make_batch(self, batch_size: int):
         indices = torch.randint(0, len(self.observations), size=(batch_size,))
         memory = ReplayMemory(self.agent, self.device)
-        memory.add_experience(self.observations[indices], self.actions[indices], self.inventories[indices], self.rewards[indices])
+        memory.observations = self.observations[indices]
+        memory.actions      = self.actions[indices]
+        memory.inventories  = self.inventories[indices]
+        memory.rewards      = self.rewards[indices]
         return memory
     
     def get_all_batches(self, batch_size: int):

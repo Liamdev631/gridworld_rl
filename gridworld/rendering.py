@@ -11,8 +11,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 
-def run_simulation_with_rendering(policy: torch.nn.Module, world: World, agent: Agent, device: torch.device, exploration_method: ExplorationMethod, file_name: str = "file.gif", max_duration: int = 100, frame_rate: float = 5):
-    agent.x, agent.y = world.get_random_coordinates()
+def run_simulation_with_rendering(
+            world: World,
+            device: torch.device,
+            policies: list[torch.nn.Module],
+            agents: list[Agent],
+            exploration_methods: list[ExplorationMethod],
+            file_name: str = "file.gif",
+            max_duration: int = 100,
+            frame_rate: float = 5):
+    
+    for agent in agents:
+        agent.x, agent.y = world.get_random_coordinates()
     frames = []
     
     pygame.init()
@@ -46,9 +56,10 @@ def run_simulation_with_rendering(policy: torch.nn.Module, world: World, agent: 
     frame = 0
     
     while not done:
-        visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
-        action = exploration_method.select_action(policy, visual_field)
-        agent.step(int(action.item()), world)
+        for agent, policy, exploration in zip(agents, policies, exploration_methods):
+            visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
+            action = exploration.get_expected_rewards(policy)
+            agent.step(int(action.item()), world)
         
         screen.fill((255, 255, 255))
         
@@ -60,7 +71,8 @@ def run_simulation_with_rendering(policy: torch.nn.Module, world: World, agent: 
                 screen.blit(sprite, (x * 16, y * 16))
                 
         # Render the agent
-        screen.blit(agent_sprite, (agent.x * 16, agent.y * 16))
+        for agent in agents:
+            screen.blit(agent_sprite, (agent.x * 16, agent.y * 16))
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:

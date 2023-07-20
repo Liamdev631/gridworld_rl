@@ -52,12 +52,8 @@ class World:
 
 
 class LoggerTrainingWorld(World):
-    def __init__(self):
-        super().__init__(grid_size=10)
-        instances = {
-            TileType.tree.value: 20,
-            TileType.log.value: 0
-        }
+    def __init__(self, grid_size: int = 10, instances: dict[int, int] = { TileType.tree.value: 20, TileType.log.value: 0 }):
+        super().__init__(grid_size)
         self.reset(instances)
 
     def is_complete(self) -> bool:
