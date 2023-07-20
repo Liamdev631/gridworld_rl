@@ -62,7 +62,7 @@ class LoggerAgent(Agent):
         elif action == 'chop':
             if world.grid[self.y][self.x] == TileType.tree.value:
                 world.grid[self.y][self.x] = TileType.log.value
-                reward += 10.0
+                reward += 5.0
             else:
                 reward -= 2.0 # Wasted a turn
         return reward
@@ -90,7 +90,7 @@ class SweeperAgent(Agent):
             reward -= 1 # Metabolic cost of moving
         elif action == 'pickup':
             if self.attempt_pickup(world):
-                reward += 10.0
+                reward += 5.0
             else:
                 reward -= 2.0
         elif action == 'drop':
