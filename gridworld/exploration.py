@@ -20,41 +20,38 @@ class ExplorationMethod:
         pass
 
     @abstractmethod
-    def get_expected_rewards(self, policy: torch.nn.Module) -> torch.Tensor:
+    def choose_action(self, policy: torch.nn.Module) -> torch.Tensor:
         pass
     
 class TrueRandom(ExplorationMethod):
     def __init__(self, agent: Agent, world: World, device) -> None:
         super().__init__(agent, world, device)
         
-    def get_expected_rewards(self, policy: torch.nn.Module) -> torch.Tensor:
-        rewards = torch.zeros(len(self.agent.possible_actions))
-        action_index = torch.randint(0, len(self.agent.possible_actions), (1,), device=self.device)
-        rewards[action_index] = 1.0
-        return action_index
+    def choose_action(self, policy: torch.nn.Module) -> torch.Tensor:
+        action = torch.randint(0, len(self.agent.possible_actions), (1,), device=self.device)
+        return action
 
 class Greedy(ExplorationMethod):
     def __init__(self, agent: Agent, world: World, device) -> None:
         super().__init__(agent, world, device)
     
-    def get_expected_rewards(self, policy: torch.nn.Module) -> torch.Tensor:
-        rewards = torch.zeros(len(self.agent.possible_actions))
+    def choose_action(self, policy: torch.nn.Module) -> torch.Tensor:
         visual_field = self.world.get_visual_field_at_agent(self.agent).flatten().unsqueeze(dim=0).to(self.device)
         inventory = self.agent.inventory.flatten().unsqueeze(dim=0).to(self.device)
-        return policy(visual_field, inventory)
+        expected_rewards = policy(visual_field, inventory)
+        action_probs = torch.softmax(expected_rewards, dim=1)
+        action = torch.multinomial(action_probs, 1)
+        return action
 
 class EpsilonGreedy(ExplorationMethod):
     def __init__(self, agent: Agent, world: World, device, epsilon: float) -> None:
         super().__init__(agent, world, device)
         self.epsilon = epsilon
+        self.random_exploration = TrueRandom(agent, world, device)
+        self.greedy_exploration = Greedy(agent, world, device)
         
-    def get_expected_rewards(self, policy: torch.nn.Module) -> torch.Tensor:
+    def choose_action(self, policy: torch.nn.Module) -> torch.Tensor:
         if torch.rand(1) < self.epsilon:
-            rewards = torch.zeros(len(self.agent.possible_actions))
-            action_index = torch.randint(0, len(self.agent.possible_actions), (1,), device=self.device)
-            rewards[action_index] = 1.0
-            return rewards
-        
-        visual_field = self.world.get_visual_field_at_agent(self.agent).flatten().unsqueeze(dim=0).to(self.device)
-        inventory = self.agent.inventory.flatten().unsqueeze(dim=0).to(self.device)
-        return policy(visual_field, inventory)
+            return self.random_exploration.choose_action(policy)
+        else:
+            return self.greedy_exploration.choose_action(policy)

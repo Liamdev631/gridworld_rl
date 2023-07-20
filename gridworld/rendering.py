@@ -58,7 +58,7 @@ def run_simulation_with_rendering(
     while not done:
         for agent, policy, exploration in zip(agents, policies, exploration_methods):
             visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
-            action = exploration.get_expected_rewards(policy)
+            action = exploration.choose_action(policy)
             agent.step(int(action.item()), world)
         
         screen.fill((255, 255, 255))

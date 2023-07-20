@@ -15,7 +15,7 @@ def simulate_episode(agent: Agent, world: World, policy: torch.nn.Module, explor
     t = 0
     for t in range(max_duration):
         visual_field = world.get_visual_field_at_agent(agent).flatten().to(device)
-        action = exploration_method.get_expected_rewards(policy)
+        action = exploration_method.choose_action(policy)
         
         # Update the agent's state
         observations[t] = visual_field
