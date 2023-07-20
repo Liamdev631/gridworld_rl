@@ -19,7 +19,7 @@ class DeepQNet(nn.Module):
         self.layer2 = nn.Linear(128, 128)
         self.layer3 = nn.Linear(128, 64)
         self.layer4 = nn.Linear(64, 32)
-        self.layer5 = nn.Linear(32, 1)
+        self.layer5 = nn.Linear(32, len(agent.possible_actions))
         
     def forward(self, tiles, inventories) -> torch.Tensor:
         # print('tiles', tiles.shape)

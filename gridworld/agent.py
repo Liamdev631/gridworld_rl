@@ -64,7 +64,7 @@ class LoggerAgent(Agent):
                 world.grid[self.y][self.x] = TileType.log.value
                 reward += 5.0
             else:
-                reward -= 2.0 # Wasted a turn
+                reward -= 5.0 # Wasted a turn
         return reward
     
 class SweeperAgent(Agent):
@@ -92,7 +92,7 @@ class SweeperAgent(Agent):
             if self.attempt_pickup(world):
                 reward += 5.0
             else:
-                reward -= 2.0
+                reward -= 5.0
         elif action == 'drop':
             reward -= 2.0
         return reward
